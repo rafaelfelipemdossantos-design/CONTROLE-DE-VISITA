@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Roteiro de Visitas Pro</title>
+    
+    <!-- Configurações para transformar em App (PWA) -->
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Roteiro Pro">
+    <link rel="manifest" href="manifest.json">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Biblioteca para gerar Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-dark: #4338ca;
+            --success: #10B981;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --bg: #F9FAFB;
+            --card: #FFFFFF;
+            --text: #111827;
+            --text-light: #6B7280;
+            --radius: 20px;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 0;
+            color: var(--text);
+            padding-bottom: 120px;
+            user-select: none;
+        }
+
+        /* Header */
+        .app-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 50px 20px 80px 20px;
+            text-align: center;
+            border-bottom-left-radius: 40px;
+            border-bottom-right-radius: 40px;
+            box-shadow: var(--shadow);
+        }
+
+        .logo-box {
+            width: 64px;
+            height: 64px;
+            background: white;
+            border-radius: 18px;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .app-header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; }
+        .app-header p { margin: 5px 0 0; font-size: 0.9rem; opacity: 0.9; font-weight: 500; }
+
+        /* Dashboard Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: -40px 20px 20px;
+            background: white;
+            padding: 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .stat-item { text-align: center; }
+        .stat-num { display: block; font-size: 1.3rem; font-weight: 800; }
+        .stat-label { font-size: 0.65rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+
+        /* Search Bar */
+        .search-area { padding: 0 20px; margin-bottom: 20px; }
+        .search-input {
+            width: 100%;
+            padding: 16px 20px;
+            border-radius: 18px;
+            border: 2px solid transparent;
+            background: white;
+            font-size: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: 0.3s;
+        }
+        .search-input:focus { border-color: var(--primary); }
+
+        /* List Section */
+        .main-content { padding: 0 20px; max-width: 600px; margin: 0 auto; }
+        .section-tag {
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--text-light);
+            text-transform: uppercase;
+            margin: 25px 0 12px 5px;
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 18px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+            border-left: 8px solid #E5E7EB;
+            transition: 0.2s;
+        }
+        .card:active { transform: scale(0.97); }
+        .card.pending { border-left-color: var(--warning); }
+        .card.done { border-left-color: var(--success); opacity: 0.8; background: #fcfcfc; }
+
+        .card-info { flex: 1; }
+        .card-title { font-weight: 700; font-size: 1rem; color: var(--text); margin-bottom: 4px; }
+        .card-sub { font-size: 0.8rem; color: var(--text-light); font-weight: 500; }
+
+        .card-action {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: #FEE2E2;
+            color: var(--danger);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Fixed Bottom Menu */
+        .nav-dock {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 450px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            padding: 15px 30px;
+            border-radius: 35px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .nav-item {
+            background: none;
+            border: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-light);
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .nav-item svg { width: 24px; height: 24px; stroke-width: 2.2; }
+        
+        .nav-center {
+            background: var(--primary);
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            margin-top: -55px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+            border: 5px solid var(--bg);
+        }
+
+        /* Modal Styles */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            padding: 35px 25px;
+            border-radius: 35px 35px 0 0;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .modal-h2 { margin: 0 0 25px; font-size: 1.4rem; text-align: center; }
+        .field { margin-bottom: 25px; }
+        .field label { display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 10px; color: var(--text-light); }
+        .field input { width: 100%; padding: 18px; border-radius: 18px; border: 2px solid #F3F4F6; font-size: 1.1rem; }
+        
+        .btn-row { display: flex; gap: 12px; }
+        .action-btn { flex: 1; padding: 18px; border-radius: 18px; border: none; font-weight: 800; font-size: 1rem; cursor: pointer; }
+        .btn-save { background: var(--primary); color: white; }
+        .btn-close { background: #F3F4F6; color: var(--text-light); }
+
+        /* Toast */
+        #toast {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: #111827;
+            color: white;
+            padding: 14px 28px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            z-index: 3000;
+            box-shadow: var(--shadow);
+        }
+        #toast.active { transform: translateX(-50%) translateY(0); }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-header">
+        <div class="logo-box">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        </div>
+        <h1>Roteiro de Visitas</h1>
+        <p id="date-display"></p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-item">
+            <span class="stat-num" id="count-total">0</span>
+            <span class="stat-label">Total</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-num" style="color: var(--success)" id="count-done">0</span>
+            <span class="stat-label">Feitas</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-num" style="color: var(--warning)" id="count-left">0</span>
+            <span class="stat-label">Restam</span>
+        </div>
+    </div>
+
+    <div class="search-area">
+        <input type="text" id="search-input" class="search-input" placeholder="Pesquisar loja no roteiro..." oninput="renderApp()">
+    </div>
+
+    <div class="main-content" id="list-view">
+        <!-- Listas renderizadas aqui -->
+    </div>
+
+    <div class="nav-dock">
+        <button class="nav-item" onclick="openAddModal()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"></path></svg>
+            <span>Nova Loja</span>
+        </button>
+        <button class="nav-center" onclick="exportToExcel()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+        </button>
+        <button class="nav-item" onclick="resetVisits()" style="color: var(--danger)">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            <span>Resetar</span>
+        </button>
+    </div>
+
+    <!-- Modal Adicionar -->
+    <div id="modal-overlay" class="overlay" onclick="if(event.target==this)closeAddModal()">
+        <div class="modal">
+            <h2 class="modal-h2">Adicionar Loja</h2>
+            <div class="field">
+                <label>Nome do Estabelecimento</label>
+                <input type="text" id="new-store-name" placeholder="Ex: Supermercado Central">
+            </div>
+            <div class="btn-row">
+                <button class="action-btn btn-close" onclick="closeAddModal()">Cancelar</button>
+                <button class="action-btn btn-save" onclick="handleAddStore()">Salvar no Roteiro</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Feedback</div>
+
+    <script>
+        let dbStores = [];
+        let dbVisits = {};
+
+        // Inscrição do Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW fail', err));
+            });
+        }
+
+        function initApp() {
+            const dateStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+            document.getElementById('date-display').innerText = dateStr;
+
+            const savedS = localStorage.getItem('app_stores_pwa');
+            const savedV = localStorage.getItem('app_visits_pwa');
+
+            if (savedS) {
+                dbStores = JSON.parse(savedS);
+            } else {
+                dbStores = ["ATACADAO SUZANO", "ASSAI ITAQUAQUECETUBA", "TENDA FERRAZ"];
+                updateDB();
+            }
+
+            if (savedV) dbVisits = JSON.parse(savedV);
+            renderApp();
+        }
+
+        function updateDB() {
+            localStorage.setItem('app_stores_pwa', JSON.stringify(dbStores));
+        }
+
+        function updateVisits() {
+            localStorage.setItem('app_visits_pwa', JSON.stringify(dbVisits));
+        }
+
+        function renderApp() {
+            const listArea = document.getElementById('list-view');
+            const search = document.getElementById('search-input').value.toLowerCase();
+            listArea.innerHTML = '';
+
+            const filtered = dbStores.filter(s => s.toLowerCase().includes(search));
+            const pending = filtered.filter(s => !dbVisits[s]);
+            const done = filtered.filter(s => dbVisits[s]);
+
+            // Stats
+            document.getElementById('count-total').innerText = dbStores.length;
+            document.getElementById('count-done').innerText = Object.keys(dbVisits).length;
+            document.getElementById('count-left').innerText = dbStores.length - Object.keys(dbVisits).length;
+
+            if (pending.length > 0) renderSection(listArea, "📋 Pendentes", pending, false);
+            if (done.length > 0) renderSection(listArea, "⭐ Concluídas", done, true);
+
+            if (filtered.length === 0) {
+                listArea.innerHTML = `<div style="text-align:center; padding: 60px; color:#999; font-weight:600">Nenhuma loja encontrada</div>`;
+            }
+        }
+
+        function renderSection(target, title, list, isDone) {
+            const label = document.createElement('span');
+            label.className = 'section-tag';
+            label.innerText = title;
+            target.appendChild(label);
+
+            list.forEach(name => {
+                const card = document.createElement('div');
+                card.className = `card ${isDone ? 'done' : 'pending'}`;
+                
+                const meta = dbVisits[name] ? `Visita: ${dbVisits[name]}` : 'Clique para marcar visita';
+
+                card.innerHTML = `
+                    <div class="card-info" onclick="handleToggle('${name}')">
+                        <div class="card-title">${name}</div>
+                        <div class="card-sub">${meta}</div>
+                    </div>
+                    <button class="card-action" onclick="handleDelete('${name}')">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                `;
+                target.appendChild(card);
+            });
+        }
+
+        function handleToggle(name) {
+            if (navigator.vibrate) navigator.vibrate(40);
+            
+            if (dbVisits[name]) {
+                if (confirm(`Remover visita de ${name}?`)) {
+                    delete dbVisits[name];
+                    notify("Visita removida");
+                }
+            } else {
+                dbVisits[name] = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                notify("Visita registrada!");
+            }
+            updateVisits();
+            renderApp();
+        }
+
+        function handleDelete(name) {
+            if (confirm(`Deseja excluir permanentemente a loja ${name}?`)) {
+                dbStores = dbStores.filter(s => s !== name);
+                delete dbVisits[name];
+                updateDB();
+                updateVisits();
+                renderApp();
+                notify("Loja excluída");
+            }
+        }
+
+        function handleAddStore() {
+            const inp = document.getElementById('new-store-name');
+            const val = inp.value.trim().toUpperCase();
+            if (!val) return;
+            if (dbStores.includes(val)) { notify("Loja já existe!"); return; }
+            
+            dbStores.push(val);
+            dbStores.sort();
+            updateDB();
+            renderApp();
+            closeAddModal();
+            notify("Loja adicionada!");
+        }
+
+        function resetVisits() {
+            if (confirm("Resetar as visitas de hoje? (As lojas cadastradas continuam)")) {
+                dbVisits = {};
+                updateVisits();
+                renderApp();
+                notify("Roteiro limpo!");
+            }
+        }
+
+        function exportToExcel() {
+            const data = dbStores.map(n => ({
+                "LOJA": n,
+                "STATUS": dbVisits[n] ? "OK" : "PENDENTE",
+                "HORÁRIO": dbVisits[n] || "-"
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Visitas");
+            XLSX.writeFile(wb, `Roteiro_${new Date().toLocaleDateString().replace(/\//g,'-')}.xlsx`);
+            notify("Planilha Gerada!");
+        }
+
+        function notify(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('active');
+            setTimeout(() => t.classList.remove('active'), 2500);
+        }
+
+        function openAddModal() { document.getElementById('modal-overlay').style.display = 'flex'; document.getElementById('new-store-name').focus(); }
+        function closeAddModal() { document.getElementById('modal-overlay').style.display = 'none'; document.getElementById('new-store-name').value = ''; }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
